@@ -1,4 +1,4 @@
-package com.mix.jrhino.network;
+package com.mix.rhino;
 
 import java.nio.channels.Channel;
 
@@ -17,5 +17,5 @@ public interface IMessageReceiver {
      * @param Channel The channel on which the message was received
      * @param message The received message
      */
-    public void messageArrived(final Channel channel, final String message);
+    void messageArrived(final Channel channel, final String message);
 }

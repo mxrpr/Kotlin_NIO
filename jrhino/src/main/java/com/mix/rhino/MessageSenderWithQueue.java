@@ -1,4 +1,4 @@
-package com.mix.jrhino.network;
+package com.mix.rhino;
 
 import java.nio.channels.Channel;
 import java.util.Queue;

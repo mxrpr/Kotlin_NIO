@@ -1,4 +1,4 @@
-package com.mix.jrhino.network;
+package com.mix.rhino;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -16,10 +16,15 @@ import java.util.Iterator;
  * @author Ferenc Tollas
  */
 public final class NetworkService extends ClientNetworkService {
-
+    public enum STATE {
+        STOPPED,
+        INITIALISED,
+        RUNNING
+    }
     private int portToListen = 6666;
     private Selector selector = null;
     private ServerSocketChannel serverChannel = null;
+    private  STATE state = STATE.STOPPED;
 
     /**
      * Constructor.
@@ -43,11 +48,11 @@ public final class NetworkService extends ClientNetworkService {
         this.serverChannel.bind(new InetSocketAddress(this.portToListen));
         this.serverChannel.configureBlocking(false);
         this.serverChannel.register(this.selector, SelectionKey.OP_ACCEPT);
+        this.state = STATE.INITIALISED;
     }
 
     public void run(){
-        // TODO remove in final version
-        System.out.println("Running server NIO..");
+        this.state = STATE.RUNNING;
         try {
             while (this.terminate == false) {
                 int i = this.selector.select();
@@ -87,10 +92,17 @@ public final class NetworkService extends ClientNetworkService {
                 }
             }
         } catch (Exception e) {
-            // TODO: in case of exception, then server should not terminate, the error must be handled
             this.errorReceiver.networkErrorOccurred(e.getMessage());
             e.printStackTrace();
         }
     }
 
+    public STATE getState() {
+        return this.state;
+    }
+
+    @Override
+    public void terminate() {
+        super.terminate();
+    }
 }

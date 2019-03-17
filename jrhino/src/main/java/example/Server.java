@@ -1,8 +1,8 @@
 package example;
 
-import com.mix.jrhino.network.IErrorReceiver;
-import com.mix.jrhino.network.IMessageReceiver;
-import com.mix.jrhino.network.NetworkService;
+import com.mix.rhino.IErrorReceiver;
+import com.mix.rhino.IMessageReceiver;
+import com.mix.rhino.NetworkService;
 
 import java.io.IOException;
 import java.nio.channels.Channel;
@@ -24,13 +24,12 @@ public final class Server implements IMessageReceiver, IErrorReceiver{
         this.networkService = new NetworkService(4545);
         this.networkService.registerReceiver(this);
         this.networkService.registerErrorReceiver(this);
-        this.networkService.start();
+//        this.networkService.start();
         Runtime.getRuntime().addShutdownHook(new Thread(){
             public void run(){
                 networkService.terminate();
             }
         });
-
     }
 
     public static void main(String[] args) {
@@ -55,4 +54,11 @@ public final class Server implements IMessageReceiver, IErrorReceiver{
             e.printStackTrace();
         }
     }
+    /**
+     * Terminates the network connection
+     */
+    public void terminate(){
+        this.networkService.terminate();
+    }
+
 }

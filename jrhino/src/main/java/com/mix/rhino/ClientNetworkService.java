@@ -1,4 +1,4 @@
-package com.mix.jrhino.network;
+package com.mix.rhino;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -6,10 +6,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
 
 /**
  * ClientNetworkService class is responsible to keep the connection
@@ -17,18 +18,17 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  *
  * @author  Ferenc Tollas
  */
-public class ClientNetworkService extends Thread {
+public class ClientNetworkService  {
 
     private String serverAddress = null;
     private int serverPort = 6666;
-    protected boolean terminate = false;
+    boolean terminate = false;
     private Selector selector = null;
     private SocketChannel channel = null;
-    protected Queue<String> messageSenderQueue = null;
-    protected IMessageReceiver messageReceiver = null;
-    protected MessageSenderWithQueue messageSenderWithQueue = null;
+    BlockingDeque<String> messageSenderQueue;
+    IMessageReceiver messageReceiver = null;
     private Hashtable<SocketChannel, ByteBuffer> buffers = null;
-    protected IErrorReceiver errorReceiver = null;
+    IErrorReceiver errorReceiver = null;
 
     /**
      * Default constructor is responsible to initialize
@@ -37,12 +37,13 @@ public class ClientNetworkService extends Thread {
      * @throws IOException
      */
     protected ClientNetworkService() throws IOException{
-        this.buffers = new Hashtable<SocketChannel, ByteBuffer>();
-        this.messageSenderQueue = new ConcurrentLinkedDeque<String>();
-        this.messageSenderWithQueue = new MessageSenderWithQueue();
-        this.messageSenderWithQueue.start();
+        this.buffers = new Hashtable<>();
+        this.messageSenderQueue = new LinkedBlockingDeque<>();
     }
 
+    public int getMessageQueueSize() {
+        return this.messageSenderQueue.size();
+    }
     /**
      * Constructor, initializes the buffers and queues
      *
@@ -67,7 +68,7 @@ public class ClientNetworkService extends Thread {
      */
     public void registerReceiver(final IMessageReceiver messageReceiver){
         this.messageReceiver = messageReceiver;
-        this.messageSenderWithQueue.setReceiver(this.messageReceiver);
+//        this.messageSenderWithQueue.setReceiver(this.messageReceiver);
     }
 
     public void registerErrorReceiver(final IErrorReceiver errorReceiver){
@@ -93,7 +94,7 @@ public class ClientNetworkService extends Thread {
      */
     public void terminate(){
         this.terminate = true;
-        this.messageSenderWithQueue.terminate();
+//        this.messageSenderWithQueue.terminate();
     }
 
     /**
@@ -101,15 +102,13 @@ public class ClientNetworkService extends Thread {
      *
      * @param message String
      */
-    public void sendMessage(final String message){
+    public synchronized void sendMessage(final String message){
         this.messageSenderQueue.add(message);
     }
 
     public void run(){
-        // TODO remove from the final version
-        System.out.println("Running client NIO..");
         try {
-            while (this.terminate == false) {
+            while (!this.terminate) {
                 int i = this.selector.select();
                 if (i == 0)
                     continue;
@@ -126,9 +125,11 @@ public class ClientNetworkService extends Thread {
                         this.readChannel(key);
                     }
                     if (key.isWritable()) {
-                        if (!this.messageSenderQueue.isEmpty()) {
-                            String msg = this.messageSenderQueue.poll();
-                             this.writeToChannel(key, msg);
+                        synchronized (this){
+                            if (!this.messageSenderQueue.isEmpty()) {
+                                String msg = this.messageSenderQueue.poll();
+                                this.writeToChannel(key, msg);
+                            }
                         }
                     }
                 }
@@ -143,7 +144,7 @@ public class ClientNetworkService extends Thread {
                 System.out.println("Closing channel...");
                 channel.close();
                 this.selector.close();
-            } catch (IOException e) {}
+            } catch (IOException ignored) {}
         }
     }
 
@@ -154,7 +155,7 @@ public class ClientNetworkService extends Thread {
      * @throws IOException
      * @see SelectionKey
      */
-    protected void readChannel(SelectionKey key) throws IOException{
+    void readChannel(SelectionKey key) throws IOException{
         SocketChannel socketChannel = (SocketChannel)key.channel();
         ByteBuffer readBuffer = this.buffers.get(socketChannel);
         if (readBuffer == null){
@@ -162,16 +163,15 @@ public class ClientNetworkService extends Thread {
             this.buffers.put(socketChannel, readBuffer);
         }
         readBuffer.clear();
+
         int count = socketChannel.read(readBuffer);
-        if (count == -1){
-            // TODO remove from the final version
-            System.out.println("Connection closed by peer" + ((SocketChannel) key.channel()).getRemoteAddress().toString());
+        if (count == -1) {
             this.closeChannel(key);
             return;
         }
         byte[] data = new byte[count];
         System.arraycopy(readBuffer.array(), 0, data, 0, count);
-        this.messageSenderWithQueue.addMessage(socketChannel, new String(data, "US-ASCII"));
+        this.messageReceiver.messageArrived(socketChannel, new String(data, StandardCharsets.UTF_8 ));
         readBuffer.clear();
     }
 
@@ -182,12 +182,10 @@ public class ClientNetworkService extends Thread {
      * @param message Message
      * @throws IOException
      */
-    protected void writeToChannel(SelectionKey key, final String message) throws IOException{
+    void writeToChannel(SelectionKey key, final String message) throws IOException{
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
         SocketChannel channel = (SocketChannel) key.channel();
         channel.write(buffer);
-        // TODO Remove from final version
-        System.out.print(".");
     }
 
     /**

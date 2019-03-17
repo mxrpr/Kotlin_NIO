@@ -1,4 +1,4 @@
-package com.mix.jrhino.network;
+package com.mix.rhino;
 
 /**
  * Interface which is used to notify a component about a network
@@ -13,5 +13,5 @@ public interface IErrorReceiver {
      *
      * @param errorMessage String containing the error message
      */
-    public void networkErrorOccurred(final String errorMessage);
+    void networkErrorOccurred(final String errorMessage);
 }

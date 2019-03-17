@@ -1,8 +1,8 @@
 package example;
 
-import com.mix.jrhino.network.ClientNetworkService;
-import com.mix.jrhino.network.IErrorReceiver;
-import com.mix.jrhino.network.IMessageReceiver;
+import com.mix.rhino.ClientNetworkService;
+import com.mix.rhino.IErrorReceiver;
+import com.mix.rhino.IMessageReceiver;
 
 import java.io.IOException;
 import java.nio.channels.Channel;
@@ -22,7 +22,7 @@ public final class Client implements IMessageReceiver, IErrorReceiver{
 
     private void initialize() throws IOException {
         this.clientNetworkService = new ClientNetworkService("127.0.0.1", 4545);
-        this.clientNetworkService.start();
+//        this.clientNetworkService.start();
         this.clientNetworkService.registerErrorReceiver(this);
         this.clientNetworkService.registerReceiver(this);
     }
